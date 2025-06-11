@@ -354,12 +354,22 @@ def generate_planning_documents(supabase, gemini_model, opportunity):
             'supporting_quotes': evidence.get('supporting_quotes', []),
             'financial_indicators': evidence.get('financial_indicators', {}),
             'urgency_distribution': evidence.get('urgency_distribution', {}),
-            'competitor_mentions': evidence.get('competitor_mentions', {})
+            'competitor_mentions': evidence.get('competitor_mentions', {}),
+            'source_posts': evidence.get('source_posts', [])  # Add source posts for Reddit links
         })
         print(f"  -> Using evidence from {opportunity_with_evidence['total_posts_analyzed']} posts for BRD generation")
+        print(f"  -> Evidence debug: supporting_quotes count = {len(opportunity_with_evidence.get('supporting_quotes', []))}")
+        print(f"  -> Evidence debug: pain_point_frequency = {opportunity_with_evidence.get('pain_point_frequency', 0)}")
 
     # M3.3: Draft BRD with enhanced generation if evidence is available
-    if USE_ENHANCED_EXTRACTION and opportunity_with_evidence.get('supporting_quotes'):
+    # Fix: Use a better condition that checks for meaningful evidence data
+    has_meaningful_evidence = (
+        USE_ENHANCED_EXTRACTION and 
+        opportunity_with_evidence.get('total_posts_analyzed', 0) > 0 and 
+        opportunity_with_evidence.get('pain_point_frequency', 0) > 0
+    )
+    
+    if has_meaningful_evidence:
         brd_content = generate_brd_with_gemini(
             gemini_model, 
             pain_point_summary, 
@@ -368,6 +378,7 @@ def generate_planning_documents(supabase, gemini_model, opportunity):
             use_evidence=True
         )
     else:
+        print(f"  -> No meaningful evidence available (USE_ENHANCED_EXTRACTION={USE_ENHANCED_EXTRACTION}, posts={opportunity_with_evidence.get('total_posts_analyzed', 0)}, pain_points={opportunity_with_evidence.get('pain_point_frequency', 0)})")
         brd_content = draft_brd_with_gemini(gemini_model, pain_point_summary, opportunity, selected_concept)
         
     if not brd_content:
@@ -395,7 +406,7 @@ def generate_planning_documents(supabase, gemini_model, opportunity):
         return
         
     # M3.4: Draft PRD with enhanced generation if evidence is available
-    if USE_ENHANCED_EXTRACTION and opportunity_with_evidence.get('supporting_quotes'):
+    if has_meaningful_evidence:
         prd_content = draft_prd_with_gemini(
             gemini_model, 
             brd_content, 

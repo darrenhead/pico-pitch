@@ -5,9 +5,9 @@
 
 # --- Configuration ---
 # Add as many subreddits as you want to scrape here, separated by spaces
-SUBREDDITS_TO_SCRAPE=("SideProject" "startups")
-POST_LIMIT=50 # Number of posts to scrape from EACH subreddit
-COMMENT_LIMIT=30 # Number of top comments to fetch from EACH post
+SUBREDDITS_TO_SCRAPE=("UKPersonalFinance")
+POST_LIMIT=10 # Number of posts to scrape from EACH subreddit
+COMMENT_LIMIT=20 # Number of top comments to fetch from EACH post
 
 # --- Script ---
 

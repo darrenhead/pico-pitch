@@ -395,30 +395,31 @@ def get_enhanced_brd_drafter_prompt():
             <financial_indicators>{financial_indicators}</financial_indicators>
             <urgency_distribution>{urgency_distribution}</urgency_distribution>
             <competitor_mentions>{competitor_mentions}</competitor_mentions>
+            <source_posts>{source_posts}</source_posts>
         </market_evidence>
     </input_data>
     
     <instructions>
         <step id="1" name="Executive Summary with Evidence">
             <action>Write executive summary that opens with compelling user evidence</action>
-            <guidance>Start with a powerful quote or statistic from the Reddit analysis</guidance>
+            <guidance>Start with a powerful quote or statistic from the Reddit analysis. If no direct quotes are available, use the pain point frequency and user analysis data to demonstrate market demand</guidance>
         </step>
         
         <step id="2" name="User Personas with Real Quotes">
             <action>Create 1-2 personas based on actual user patterns</action>
             <requirements>
-                <requirement>Include real quotes under "Voice of the Customer"</requirement>
-                <requirement>Link pain points to specific Reddit posts</requirement>
-                <requirement>Use actual financial impacts mentioned by users</requirement>
+                <requirement>Include real quotes under "Voice of the Customer" if available, otherwise reference the pain point patterns and urgency levels</requirement>
+                <requirement>Link pain points to general community discussions even if specific quotes aren't available</requirement>
+                <requirement>Use actual financial impacts mentioned by users or reference the urgency distribution</requirement>
             </requirements>
         </step>
         
         <step id="3" name="Value Proposition with Market Validation">
             <action>Define value proposition with evidence of demand</action>
             <include>
-                <item>Number of users expressing this need</item>
-                <item>Current costs/losses users are experiencing</item>
-                <item>Competitor gaps identified by real users</item>
+                <item>Number of users expressing this need (total_posts_analyzed and pain_point_frequency)</item>
+                <item>Current costs/losses users are experiencing (from financial_indicators)</item>
+                <item>Competitor gaps identified by real users or reflected in community discussions</item>
             </include>
         </step>
         
@@ -428,8 +429,8 @@ def get_enhanced_brd_drafter_prompt():
                 <requirement>
                     <id>BR-XX</id>
                     <description>The requirement description</description>
-                    <user_evidence>Quote or data point justifying this requirement</user_evidence>
-                    <source>Link to Reddit post/comment</source>
+                    <user_evidence>Quote or data point justifying this requirement. If no direct quotes available, reference community patterns and urgency levels</user_evidence>
+                    <source>Reddit discussion patterns or specific post references when available</source>
                 </requirement>
             </format>
         </step>
@@ -438,12 +439,37 @@ def get_enhanced_brd_drafter_prompt():
             <action>Define KPIs that directly address identified pain points</action>
             <link_to_evidence>Show how each metric relates to user-expressed problems</link_to_evidence>
         </step>
+        
+        <step id="6" name="Source Evidence Table">
+            <action>Create a comprehensive table showing all Reddit posts that provided evidence for this opportunity</action>
+            <requirements>
+                <requirement>Include clickable Reddit links so readers can visit the original posts</requirement>
+                <requirement>Show post titles, subreddits, authors, and problem summaries</requirement>
+                <requirement>Note the urgency level and any financial impact mentioned</requirement>
+                <requirement>Indicate whether it's a post or comment</requirement>
+                <requirement>Add a note that readers can contact these users directly to validate the idea or gather feedback</requirement>
+            </requirements>
+            <table_format>
+                <columns>
+                    <column>Post Type</column>
+                    <column>Title/Context</column>
+                    <column>Author</column>
+                    <column>Subreddit</column>
+                    <column>Problem Summary</column>
+                    <column>Urgency</column>
+                    <column>Financial Impact</column>
+                    <column>Reddit Link</column>
+                </columns>
+            </table_format>
+            <note>Add explanatory text that this table provides direct access to the source conversations, enabling readers to verify the market demand and potentially reach out to these users for further validation or early customer conversations</note>
+        </step>
     </instructions>
     
     <output_format>
         <structure>Professional Business Requirements Document in Markdown</structure>
         <evidence_integration>Seamlessly weave quotes and data throughout</evidence_integration>
         <citation_style>Include Reddit post IDs and links as inline references</citation_style>
+        <source_table>Create a dedicated markdown table for source evidence with clickable links</source_table>
     </output_format>
 </brd_generation_task>
     """
@@ -494,9 +520,9 @@ def get_enhanced_prd_drafter_prompt():
         <step id="2" name="User Workflows with Real Examples">
             <action>Create user workflows based on actual user behavior patterns</action>
             <requirements>
-                <requirement>Reference specific user quotes in acceptance criteria</requirement>
-                <requirement>Include pain points users mentioned in workflow steps</requirement>
-                <requirement>Cite Reddit permalinks for traceability</requirement>
+                <requirement>Reference specific user quotes in acceptance criteria if available, otherwise use community patterns and urgency indicators</requirement>
+                <requirement>Include pain points users mentioned in workflow steps, or reference the pain point frequency and urgency distribution</requirement>
+                <requirement>Cite Reddit permalinks for traceability when available, otherwise reference community patterns</requirement>
             </requirements>
         </step>
         
@@ -506,15 +532,15 @@ def get_enhanced_prd_drafter_prompt():
                 <requirement>
                     <id>FR-XX</id>
                     <description>Technical requirement</description>
-                    <user_justification>Real user quote or data point</user_justification>
-                    <source>Reddit link or post reference</source>
+                    <user_justification>Real user quote or data point. If no direct quotes available, reference pain point frequency, urgency distribution, or financial indicators</user_justification>
+                    <source>Reddit link or community pattern reference</source>
                 </requirement>
             </format>
         </step>
         
         <step id="4" name="Evidence-Based Acceptance Criteria">
             <action>Write Gherkin scenarios that reflect real user needs</action>
-            <guidance>Use actual user language and scenarios from Reddit posts</guidance>
+            <guidance>Use actual user language and scenarios from Reddit posts when available, otherwise use common patterns from the community analysis</guidance>
         </step>
         
         <step id="5" name="Success Metrics with Baseline Evidence">
@@ -1315,7 +1341,10 @@ def generate_brd_with_gemini(model, pain_point_summary, opportunity_details, sel
     has_evidence = (
         use_evidence and 
         opportunity_details.get('total_posts_analyzed', 0) > 0 and
-        opportunity_details.get('supporting_quotes')
+        (
+            opportunity_details.get('supporting_quotes') or 
+            opportunity_details.get('pain_point_frequency', 0) > 0
+        )
     )
     
     if has_evidence:
@@ -1334,7 +1363,8 @@ def generate_brd_with_gemini(model, pain_point_summary, opportunity_details, sel
             supporting_quotes=json.dumps(opportunity_details.get('supporting_quotes', [])),
             financial_indicators=json.dumps(opportunity_details.get('financial_indicators', {})),
             urgency_distribution=json.dumps(opportunity_details.get('urgency_distribution', {})),
-            competitor_mentions=json.dumps(opportunity_details.get('competitor_mentions', []))
+            competitor_mentions=json.dumps(opportunity_details.get('competitor_mentions', [])),
+            source_posts=json.dumps(opportunity_details.get('source_posts', []))
         )
     else:
         print("📝 Generating standard BRD...")
@@ -1377,7 +1407,10 @@ def draft_prd_with_gemini(model, brd_content, selected_concept, opportunity_deta
     has_evidence = (
         use_evidence and 
         opportunity_details.get('total_posts_analyzed', 0) > 0 and
-        opportunity_details.get('supporting_quotes')
+        (
+            opportunity_details.get('supporting_quotes') or 
+            opportunity_details.get('pain_point_frequency', 0) > 0
+        )
     )
 
     if has_evidence:
@@ -1458,7 +1491,8 @@ def aggregate_evidence_for_opportunity(leads_data):
         'urgency_distribution': {'High': 0, 'Medium': 0, 'Low': 0},
         'competitor_mentions': {},
         'pain_point_frequency': 0,
-        'source_links': []
+        'source_links': [],
+        'source_posts': []  # Enhanced source information
     }
     
     for lead in leads_data:
@@ -1470,6 +1504,22 @@ def aggregate_evidence_for_opportunity(leads_data):
             
         evidence['pain_point_frequency'] += 1
         
+        # Collect detailed source post information
+        if lead.get('permalink'):
+            source_post = {
+                'reddit_url': f"https://reddit.com{lead.get('permalink', '')}",
+                'permalink': lead.get('permalink', ''),
+                'title': lead.get('title', 'Untitled'),
+                'subreddit': lead.get('subreddit', 'unknown'),
+                'author': lead.get('author', '[deleted]'),
+                'is_comment': lead.get('is_comment', False),
+                'problem_summary': analysis.get('problem_summary', ''),
+                'urgency_level': analysis.get('urgency_level', 'Low'),
+                'financial_impact': analysis.get('financial_indicators', {}).get('cost_of_problem', ''),
+                'supporting_quotes': analysis.get('supporting_quotes', [])
+            }
+            evidence['source_posts'].append(source_post)
+        
         # Collect quotes
         quotes = analysis.get('supporting_quotes', [])
         for quote in quotes:
@@ -1477,7 +1527,10 @@ def aggregate_evidence_for_opportunity(leads_data):
                 evidence['supporting_quotes'].append({
                     'text': quote.get('text', ''),
                     'context': quote.get('context', ''),
-                    'source': lead.get('permalink', '')
+                    'source': lead.get('permalink', ''),
+                    'reddit_url': f"https://reddit.com{lead.get('permalink', '')}" if lead.get('permalink') else '',
+                    'author': lead.get('author', '[deleted]'),
+                    'subreddit': lead.get('subreddit', 'unknown')
                 })
         
         # Aggregate financial indicators
@@ -1501,7 +1554,7 @@ def aggregate_evidence_for_opportunity(leads_data):
             evidence['urgency_distribution'][urgency] = 0
         evidence['urgency_distribution'][urgency] += 1
         
-        # Track source links
+        # Track source links (maintaining backwards compatibility)
         if lead.get('permalink'):
             evidence['source_links'].append(lead.get('permalink'))
         
