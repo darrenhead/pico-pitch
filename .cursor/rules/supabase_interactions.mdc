@@ -1,0 +1,33 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: Guidelines for interacting with Supabase (database, auth, storage) in PicoSeed.
+globs:
+  - "**.py"
+  - "**/pages/api/**.js" # Next.js API routes
+  - "**/lib/supabaseClient.js" # Or wherever your Supabase client is initialized
+alwaysApply: false # Auto-attached
+---
+
+# PicoSeed Supabase Interaction Guidelines
+
+- **Client Libraries:**
+    - Use `supabase-py` for Python backend interactions.
+    - Use `supabase-js` for Next.js frontend and API route interactions.
+- **Database Operations:**
+    - All data related to leads, opportunities, and generated documents is stored in Supabase PostgreSQL.
+    - Refer to the conceptual schema in the project plan for table names (`raw_leads`, `opportunities`, `documents`, etc.) and column names.
+    - When inserting or updating, ensure all required fields are provided and data types match.
+    - Implement checks to avoid duplicate entries where appropriate (e.g., based on `reddit_id` for `raw_leads`).
+- **Authentication (If Frontend UI implements user accounts):**
+    - Utilize Supabase Auth for any user management in the Next.js dashboard.
+    - Implement Row Level Security (RLS) policies in Supabase to protect data.
+- **Storage (If applicable later):**
+    - If storing larger files or assets, use Supabase Storage.
+- **Edge Functions (If applicable later):**
+    - For serverless backend logic directly within Supabase, consider Supabase Edge Functions.
+- **Error Handling:** Wrap Supabase client calls in try/except (Python) or try/catch (JS) blocks to handle potential API errors or database issues.
+- **Credentials:** Supabase URL and anon/service_role keys must be loaded from environment variables.

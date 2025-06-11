@@ -1,0 +1,25 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: Conventions for the optional Next.js frontend dashboard of PicoSeed.
+globs:
+  - "**/pages/**.{js,jsx,ts,tsx}"
+  - "**/components/**.{js,jsx,ts,tsx}"
+alwaysApply: false # Auto-attached
+---
+
+# PicoSeed Next.js Frontend Conventions
+
+- **Framework:** Next.js (specify Pages Router or App Router if decided).
+- **Styling:** Tailwind CSS for utility-first styling.
+- **UI Components:** Shadcn/ui for pre-built, accessible components.
+    - When generating UI, suggest using appropriate Shadcn components (e.g., `Button`, `Table`, `Card`, `Input`).
+- **State Management:** For simple cases, React Context or component state. For more complex state, consider Zustand or Jotai if needed.
+- **API Interaction:**
+    - Fetch data from Supabase using `supabase-js` client, typically in `getServerSideProps`, `getStaticProps`, or client-side hooks (like SWR or React Query).
+    - API routes in `pages/api/` can be used for backend logic that needs to be triggered from the frontend (e.g., manually re-triggering a Gemini agent for a specific lead).
+- **TypeScript:** Prefer TypeScript for better type safety.
+- **File Structure:** Organize components logically (e.g., `components/ui`, `components/layout`, `components/specific-feature`).

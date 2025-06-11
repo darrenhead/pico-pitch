@@ -1,0 +1,19 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: General coding conventions and project structure for PicoSeed.
+alwaysApply: true 
+---
+
+# PicoSeed General Conventions
+
+- **Project Goal:** PicoSeed is an AI-driven system to find SaaS opportunities from Reddit, analyze them with Gemini, and generate development plans.
+- **Modularity:** Strive for modular code. Break down complex logic into smaller, reusable functions or classes.
+- **Clarity:** Prioritize clear and readable code. Add comments where necessary to explain complex logic or intent.
+- **File Naming:** Use `snake_case` for Python files and `kebab-case` or `PascalCase` (for components) for Next.js files.
+- **Version Control:** Commit messages should be clear and follow conventional commit formats if possible (e.g., `feat: ...`, `fix: ...`, `docs: ...`).
+- **Secrets Management:** All API keys (Reddit, Gemini, Supabase) and sensitive configurations MUST be loaded from environment variables (e.g., via a `.env` file locally, and environment variables in deployment). Do NOT hardcode secrets.
+- **Output Directory:** Generated Markdown documents (BRDs, PRDs, Agile Plans) should be saved to the `outputs/picoseed_outputs/[opportunity_id]/[document_type]_v[version].md` directory structure.

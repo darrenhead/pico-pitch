@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: Reminders to update the README.md when significant changes are made.
+agentRequested: true # AI can choose to include this if it thinks a README update is needed.
+---
+
+# README Update Reminder for PicoSeed
+
+- If new environment variables are added, ensure they are documented in `README.md` and a sample `.env.example` file.
+- If the setup process changes, update the setup instructions in `README.md`.
+- If new major features or agents are added, briefly describe them and their usage in `README.md`.
+- After completing a major development phase (as outlined in the project plan), review and update the relevant sections of `README.md`.

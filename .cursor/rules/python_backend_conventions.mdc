@@ -1,0 +1,24 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: Conventions for Python backend development in PicoSeed, including orchestration and agent logic.
+globs: 
+  - "**.py"
+alwaysApply: false # Auto-attached when Python files are referenced
+---
+
+# PicoSeed Python Backend Conventions
+
+- **Python Version:** Assume Python 3.9+
+- **Virtual Environment:** All development should occur within a Python virtual environment (`venv`). Dependencies are managed in `requirements.txt`.
+- **Type Hinting:** Use Python type hints extensively for better code clarity and maintainability.
+- **Main Orchestrator:** The `orchestrator.py` script is the central point for managing the workflow.
+- **Agent Structure:** Python agents (e.g., `reddit_scraper_agent.py`, `gemini_interaction_agent.py`) should be modular and focus on specific tasks.
+- **PRAW Usage:** When interacting with Reddit via PRAW:
+    - Respect API rate limits (use `time.sleep()`).
+    - Handle potential PRAW exceptions gracefully.
+    - Ensure the `user_agent` is correctly set for the Reddit client.
+- **File Exporter:** The `file_exporter.py` module (or equivalent logic) is responsible for saving Markdown files locally.

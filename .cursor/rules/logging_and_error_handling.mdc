@@ -1,0 +1,23 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: Standard practices for logging and error handling across the PicoSeed project.
+alwaysApply: true
+---
+
+# PicoSeed Logging and Error Handling
+
+- **Logging:**
+    - Use Python's built-in `logging` module for backend logging.
+    - Configure a basic logger in `orchestrator.py` (or a utility module).
+    - Log key events, agent triggers, successful operations, and errors.
+    - Include timestamps and relevant context in log messages.
+    - Example log levels: `INFO` for general workflow, `WARNING` for recoverable issues, `ERROR` for failures.
+- **Error Handling:**
+    - Use `try...except` blocks for operations that might fail (API calls, file I/O, database interactions).
+    - Catch specific exceptions where possible.
+    - Log errors with sufficient detail (e.g., stack trace, input data that caused the error).
+    - For critical errors, the system should fail gracefully or implement retry logic where appropriate.

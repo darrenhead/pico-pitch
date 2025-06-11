@@ -1,0 +1,25 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+---
+description: Guidelines for using the Google Gemini API via the google-generativeai Python SDK in PicoSeed.
+globs:
+  - "**/gemini_interaction_agent.py"
+  - "**/orchestrator.py" # If it directly calls Gemini helper functions
+alwaysApply: false # Auto-attached
+---
+
+# PicoSeed Gemini API Usage Guidelines
+
+- **SDK:** Use the `google-generativeai` Python SDK.
+- **Model:** Default to `gemini-pro` for text generation tasks unless specified otherwise.
+- **API Key:** The Gemini API key MUST be loaded from an environment variable (e.g., `GOOGLE_API_KEY`).
+- **Prompt Engineering:**
+    - Prompts are defined in the project plan (Section 7) and should be used as the basis for API calls.
+    - Ensure prompts clearly state the desired output format (e.g., JSON, Markdown).
+    - For complex tasks, consider breaking them into smaller, chained Gemini calls if one large prompt is ineffective.
+- **Error Handling:** Implement robust error handling for API calls (e.g., network issues, quota limits, content filtering).
+- **Content Parsing:** If Gemini returns JSON, use `json.loads()` to parse the response. If it returns Markdown, process it as plain text.
+- **Cost Awareness:** Be mindful of the number of API calls. Implement caching or avoid redundant calls where possible (e.g., don't re-process a lead if its input hasn't changed and a valid output already exists).

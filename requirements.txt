@@ -1,0 +1,4 @@
+praw
+supabase
+google-generativeai
+python-dotenv 
