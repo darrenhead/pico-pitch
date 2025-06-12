@@ -26,6 +26,11 @@ FLASH_MODEL_NAME = "gemini-2.5-flash-preview-05-20" # Fast model for high-volume
 PRO_MODEL_NAME = "gemini-2.5-pro-preview-06-05" # Powerful model for critical thinking tasks
 USE_ENHANCED_EXTRACTION = True  # Toggle to use evidence-based extraction
 
+# Theme consolidation settings (to prevent timeouts with large datasets)
+# These values are configured in main() - documented here for reference
+# DEFAULT_THEME_BATCH_SIZE = 50     # Domains per batch 
+# DEFAULT_MAX_DOMAINS = 200         # Maximum domains to process
+
 def get_new_leads(supabase):
     """Fetches a large batch of leads from Supabase that have not been processed yet."""
     print("Fetching new leads from Supabase...")
@@ -519,8 +524,18 @@ def main():
     # --- STAGE 2.5: CONSOLIDATE THEMES ---
     print("\n--- STAGE 2.5: CONSOLIDATING SIMILAR THEMES ---")
     raw_domains = list(leads_by_domain.keys())
-    print(f"Sending {len(raw_domains)} unique domains to Gemini for consolidation. This may take a few moments...")
-    consolidated_theme_map = consolidate_themes_with_gemini(gemini_pro_model, raw_domains)
+    
+    # Configuration for theme consolidation to avoid timeouts
+    THEME_BATCH_SIZE = 50  # Domains per batch to avoid timeouts
+    MAX_DOMAINS_TO_PROCESS = 1000  # Process all domains we find (set high to not limit)
+    
+    print(f"Found {len(raw_domains)} unique domains to consolidate.")
+    consolidated_theme_map = consolidate_themes_with_gemini(
+        gemini_pro_model, 
+        raw_domains, 
+        batch_size=THEME_BATCH_SIZE,
+        max_domains=MAX_DOMAINS_TO_PROCESS
+    )
     
     if not consolidated_theme_map:
         print("Theme consolidation failed. Exiting.")
