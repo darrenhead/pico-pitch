@@ -2,6 +2,7 @@ import os
 import praw
 import argparse
 import concurrent.futures
+import time
 from functools import partial
 from database_manager import get_supabase_client
 from dotenv import load_dotenv
@@ -84,12 +85,21 @@ def store_leads(supabase, leads: list):
         print("No new leads to store.")
         return
 
-    print(f"Storing {len(leads)} leads in Supabase...")
+    # Add session ID to all leads in this batch
+    session_id = f"scrape_{int(time.time())}"
+    for lead in leads:
+        lead['session_id'] = session_id
+        # Remove scraped_at since the table has a default value of now()
+
+    print(f"Storing {len(leads)} leads in Supabase with session_id: {session_id}...")
     try:
         data, count = supabase.table('raw_leads').upsert(leads, on_conflict='reddit_id').execute()
         print(f"Successfully stored/updated {len(data[1])} leads.")
+        print(f"Session ID for this batch: {session_id}")
+        return session_id  # Return session_id for the orchestrator to use
     except Exception as e:
         print(f"Error storing leads in Supabase: {e}")
+        return None
 
 def main():
     parser = argparse.ArgumentParser(description="Scrape multiple Reddit subreddits in parallel for SaaS ideas.")
@@ -129,7 +139,14 @@ def main():
             for lead_list in results:
                 all_leads.extend(lead_list)
 
-        store_leads(supabase, all_leads)
+        session_id = store_leads(supabase, all_leads)
+        
+        # Write session_id to a file for the orchestrator to use
+        if session_id:
+            with open('.current_session_id', 'w') as f:
+                f.write(session_id)
+            print(f"✅ Scraping complete! Session ID saved to .current_session_id")
+            print(f"💡 Run the orchestrator next to process these {len(all_leads)} leads")
 
     except ValueError as e:
         print(f"Configuration Error: {e}")

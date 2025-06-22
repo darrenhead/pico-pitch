@@ -1241,17 +1241,78 @@ def consolidate_themes_with_gemini(model, domain_list: list, batch_size=50, max_
         print("🔄 Second pass: consolidating themes across batches...")
         consolidated_theme_names = list(consolidated_result.keys())
         
-        # If we have many themes, batch the second pass too
-        if len(consolidated_theme_names) <= 50:
+        # Process second pass in batches if needed, but allow much larger datasets
+        if len(consolidated_theme_names) <= 200:
             final_consolidation = consolidate_themes_second_pass(model, consolidated_theme_names, consolidated_result)
             if final_consolidation:
                 print(f"✅ Final result: {len(domain_list)} domains → {len(final_consolidation)} consolidated themes")
                 return final_consolidation
         else:
-            print(f"⚠️  Too many themes ({len(consolidated_theme_names)}) for second pass. Using first pass results.")
+            # For very large datasets, process in batches for second pass too
+            print(f"🔄 Large theme set ({len(consolidated_theme_names)} themes) - processing second pass in batches...")
+            final_consolidation = consolidate_themes_second_pass_batched(model, consolidated_theme_names, consolidated_result)
+            if final_consolidation:
+                print(f"✅ Final result: {len(domain_list)} domains → {len(final_consolidation)} consolidated themes")
+                return final_consolidation
     
     print(f"✅ Final result: {len(domain_list)} domains → {len(consolidated_result)} themes")
     return consolidated_result
+
+def consolidate_themes_second_pass_batched(model, theme_names, theme_mapping, batch_size=50):
+    """
+    Second pass consolidation for large theme sets, processing in batches.
+    
+    Args:
+        model: The Gemini model client
+        theme_names: List of consolidated theme names from first pass
+        theme_mapping: Original mapping from first pass {theme: [domains]}
+        batch_size: Number of themes to process per batch
+        
+    Returns:
+        Final consolidated mapping or None if failed
+    """
+    if len(theme_names) <= batch_size:
+        # Small enough for single batch
+        return consolidate_themes_second_pass(model, theme_names, theme_mapping)
+    
+    print(f"   📦 Processing {len(theme_names)} themes in batches of {batch_size}")
+    
+    # Process themes in batches
+    batched_result = {}
+    total_batches = (len(theme_names) + batch_size - 1) // batch_size
+    
+    for i in range(0, len(theme_names), batch_size):
+        batch = theme_names[i:i + batch_size]
+        batch_num = (i // batch_size) + 1
+        
+        print(f"   Processing second pass batch {batch_num}/{total_batches} ({len(batch)} themes)...")
+        
+        # Create a subset mapping for this batch
+        batch_mapping = {theme: theme_mapping[theme] for theme in batch if theme in theme_mapping}
+        
+        # Consolidate this batch
+        batch_consolidation = consolidate_themes_second_pass(model, batch, batch_mapping)
+        
+        if batch_consolidation:
+            batched_result.update(batch_consolidation)
+            print(f"      ✅ Second pass batch {batch_num} consolidated to {len(batch_consolidation)} themes")
+        else:
+            # If batch fails, keep original themes
+            for theme in batch:
+                if theme in theme_mapping:
+                    batched_result[theme] = theme_mapping[theme]
+            print(f"      ⚠️  Second pass batch {batch_num} failed, keeping original themes")
+    
+    # THIRD PASS: Final consolidation across batches if we still have many themes
+    if len(batched_result) > 100:
+        print(f"🔄 Third pass: final consolidation of {len(batched_result)} themes...")
+        final_theme_names = list(batched_result.keys())
+        final_consolidation = consolidate_themes_second_pass(model, final_theme_names, batched_result)
+        if final_consolidation:
+            print(f"   ✅ Third pass successful: {len(batched_result)} → {len(final_consolidation)} themes")
+            return final_consolidation
+    
+    return batched_result
 
 def consolidate_themes_second_pass(model, theme_names, theme_mapping):
     """

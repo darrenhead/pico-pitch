@@ -31,16 +31,44 @@ USE_ENHANCED_EXTRACTION = True  # Toggle to use evidence-based extraction
 # DEFAULT_THEME_BATCH_SIZE = 50     # Domains per batch 
 # DEFAULT_MAX_DOMAINS = 200         # Maximum domains to process
 
-def get_new_leads(supabase):
-    """Fetches a large batch of leads from Supabase that have not been processed yet."""
-    print("Fetching new leads from Supabase...")
+def get_current_session_id():
+    """Reads the current session ID from the file created by the Reddit scraper."""
     try:
-        response = supabase.table('raw_leads').select('*').eq('status', 'new_raw_lead').limit(50).execute()
-        print(f"Found {len(response.data)} new leads to process.")
-        return response.data
+        with open('.current_session_id', 'r') as f:
+            session_id = f.read().strip()
+            if session_id:
+                print(f"📋 Found current session ID: {session_id}")
+                return session_id
+            else:
+                print("⚠️  Session ID file is empty")
+                return None
+    except FileNotFoundError:
+        print("⚠️  No .current_session_id file found. Did you run the Reddit scraper first?")
+        return None
     except Exception as e:
-        print(f"Error fetching new leads: {e}")
-        return []
+        print(f"❌ Error reading session ID: {e}")
+        return None
+
+def get_new_leads(supabase, session_id=None):
+    """Fetches a large batch of leads from Supabase that have not been processed yet."""
+    if session_id:
+        print(f"Fetching new leads from session {session_id}...")
+        try:
+            response = supabase.table('raw_leads').select('*').eq('status', 'new_raw_lead').eq('session_id', session_id).limit(50).execute()
+            print(f"Found {len(response.data)} new leads from current session to process.")
+            return response.data
+        except Exception as e:
+            print(f"Error fetching session leads: {e}")
+            return []
+    else:
+        print("Fetching new leads from Supabase...")
+        try:
+            response = supabase.table('raw_leads').select('*').eq('status', 'new_raw_lead').limit(50).execute()
+            print(f"Found {len(response.data)} new leads to process.")
+            return response.data
+        except Exception as e:
+            print(f"Error fetching new leads: {e}")
+            return []
 
 def get_processed_leads_for_theming(supabase):
     """Fetches all processed leads that are ready for thematic analysis."""
@@ -52,6 +80,22 @@ def get_processed_leads_for_theming(supabase):
         return response.data
     except Exception as e:
         print(f"Error fetching processed leads for theming: {e}")
+        return []
+
+def get_processed_leads_for_theming_by_session(supabase, session_lead_ids):
+    """Fetches processed leads from a specific session that are ready for thematic analysis."""
+    if not session_lead_ids:
+        return []
+    
+    print("Fetching processed leads for thematic analysis from current session...")
+    try:
+        # Convert set to list for the query
+        lead_ids_list = list(session_lead_ids)
+        response = supabase.table('raw_leads').select('*').eq('status', 'problem_extracted').in_('id', lead_ids_list).execute()
+        print(f"Found {len(response.data)} processed leads from current session to analyze for themes.")
+        return response.data
+    except Exception as e:
+        print(f"Error fetching session processed leads for theming: {e}")
         return []
 
 def get_defined_opportunities(supabase):
@@ -76,6 +120,21 @@ def get_opportunities_for_validation(supabase):
         print(f"Error fetching opportunities for validation: {e}")
         return []
 
+def get_opportunities_for_validation_by_session(supabase, session_opportunity_ids):
+    """Fetches opportunities from current session that need validation."""
+    if not session_opportunity_ids:
+        return []
+    
+    print("Fetching defined opportunities from current session for validation...")
+    try:
+        opportunity_ids_list = list(session_opportunity_ids)
+        response = supabase.table('opportunities').select('*').eq('status', 'opportunity_defined').in_('id', opportunity_ids_list).execute()
+        print(f"Found {len(response.data)} opportunities from current session to validate.")
+        return response.data
+    except Exception as e:
+        print(f"Error fetching session opportunities for validation: {e}")
+        return []
+
 def get_validated_opportunities(supabase):
     """Fetches a large batch of opportunities that have been validated and are ready for solution brainstorming."""
     print("Fetching validated opportunities for solution brainstorming...")
@@ -85,6 +144,21 @@ def get_validated_opportunities(supabase):
         return response.data
     except Exception as e:
         print(f"Error fetching validated opportunities: {e}")
+        return []
+
+def get_validated_opportunities_by_session(supabase, session_opportunity_ids):
+    """Fetches validated opportunities from current session for solution brainstorming."""
+    if not session_opportunity_ids:
+        return []
+    
+    print("Fetching validated opportunities from current session for solution brainstorming...")
+    try:
+        opportunity_ids_list = list(session_opportunity_ids)
+        response = supabase.table('opportunities').select('*').eq('status', 'opportunity_validated').in_('id', opportunity_ids_list).execute()
+        print(f"Found {len(response.data)} opportunities from current session to brainstorm solutions for.")
+        return response.data
+    except Exception as e:
+        print(f"Error fetching session validated opportunities: {e}")
         return []
 
 def get_opportunities_for_planning(supabase):
@@ -97,6 +171,21 @@ def get_opportunities_for_planning(supabase):
         return response.data
     except Exception as e:
         print(f"Error fetching opportunities for planning: {e}")
+        return []
+
+def get_opportunities_for_planning_by_session(supabase, session_opportunity_ids):
+    """Fetches opportunities from current session that are ready for document generation."""
+    if not session_opportunity_ids:
+        return []
+    
+    print("Fetching opportunities from current session ready for document generation...")
+    try:
+        opportunity_ids_list = list(session_opportunity_ids)
+        response = supabase.table('opportunities').select('*, solution_concepts(*)').eq('status', 'solutions_brainstormed').in_('id', opportunity_ids_list).execute()
+        print(f"Found {len(response.data)} opportunities from current session for planning.")
+        return response.data
+    except Exception as e:
+        print(f"Error fetching session opportunities for planning: {e}")
         return []
 
 def process_and_update_lead(supabase, gemini_model, lead):
@@ -167,7 +256,7 @@ def find_and_create_themed_opportunities(supabase, gemini_model, theme_name, lea
 
     if not theme_analysis:
         print(f"    -> Thematic analysis summary failed for theme '{theme_name}'.")
-        return
+        return None
 
     print(f"    -> Theme summary successful for: '{theme_analysis.get('theme_title')}'")
 
@@ -183,7 +272,7 @@ def find_and_create_themed_opportunities(supabase, gemini_model, theme_name, lea
         # Update leads to avoid reprocessing
         lead_ids_to_update = [lead['id'] for lead in leads]
         supabase.table('raw_leads').update({"status": "thematic_analysis_failed"}).in_('id', lead_ids_to_update).execute()
-        return
+        return None
 
     # Aggregate evidence if using enhanced extraction
     evidence_data = {}
@@ -195,6 +284,10 @@ def find_and_create_themed_opportunities(supabase, gemini_model, theme_name, lea
                 leads_with_analysis.append({
                     'permalink': lead.get('permalink', ''),
                     'content': lead.get('body_text', ''),
+                    'title': lead.get('title', 'Untitled'),
+                    'subreddit': lead.get('subreddit', 'unknown'),
+                    'author': lead.get('author', '[deleted]'),
+                    'is_comment': lead.get('is_comment', False),
                     'analysis': lead.get('enhanced_analysis')
                 })
             elif lead.get('gemini_problem_summary'):
@@ -202,6 +295,10 @@ def find_and_create_themed_opportunities(supabase, gemini_model, theme_name, lea
                 leads_with_analysis.append({
                     'permalink': lead.get('permalink', ''),
                     'content': lead.get('body_text', ''),
+                    'title': lead.get('title', 'Untitled'),
+                    'subreddit': lead.get('subreddit', 'unknown'),
+                    'author': lead.get('author', '[deleted]'),
+                    'is_comment': lead.get('is_comment', False),
                     'analysis': {
                         'problem_summary': lead.get('gemini_problem_summary'),
                         'problem_domain': lead.get('gemini_problem_domain'),
@@ -242,17 +339,20 @@ def find_and_create_themed_opportunities(supabase, gemini_model, theme_name, lea
         insert_response = supabase.table('opportunities').insert(opportunity_data).execute()
         
         if insert_response.data:
-            print(f"    -> Successfully created opportunity for theme '{theme_name}'.")
+            opportunity_id = insert_response.data[0]['id']
+            print(f"    -> Successfully created opportunity for theme '{theme_name}' (ID: {opportunity_id}).")
             # Update all contributing leads
             supabase.table('raw_leads').update({"status": "opportunity_created"}).in_('id', lead_ids).execute()
+            return opportunity_id
         else:
              print("   -> FAILED to insert opportunity.")
-
+             return None
 
     except Exception as e:
         print(f"    -> Error creating themed opportunity or updating leads: {e}")
         lead_ids_to_update = [lead['id'] for lead in leads]
         supabase.table('raw_leads').update({"status": "thematic_analysis_failed"}).in_('id', lead_ids_to_update).execute()
+        return None
 
 
 def validate_and_update_opportunity(supabase, gemini_model, opportunity):
@@ -485,18 +585,31 @@ def main():
     start_time = time.time()
     stage_times = {}
 
+    # Get the current session ID to ensure we only process leads from the latest scraping session
+    session_id = get_current_session_id()
+    if not session_id:
+        print("❌ No session ID found. Please run the Reddit scraper first.")
+        print("💡 Example: python reddit_scraper_agent.py SaaS startups --limit 20")
+        return
+
     gemini_flash_model = get_gemini_client(FLASH_MODEL_NAME)
     gemini_pro_model = get_gemini_client(PRO_MODEL_NAME)
     print(f"Initialized models: '{FLASH_MODEL_NAME}' for speed, '{PRO_MODEL_NAME}' for quality.")
     supabase = get_supabase_client()
     
-    # --- STAGE 1: Process all raw leads in parallel ---
-    print("\n--- STAGE 1: PROCESSING ALL RAW LEADS (IN PARALLEL) ---")
+    # Track lead IDs from this session for downstream filtering
+    session_lead_ids = set()
+    
+    # --- STAGE 1: Process all raw leads from current session in parallel ---
+    print(f"\n--- STAGE 1: PROCESSING RAW LEADS FROM SESSION {session_id} (IN PARALLEL) ---")
     while True:
-        new_leads = get_new_leads(supabase)
+        new_leads = get_new_leads(supabase, session_id)
         if not new_leads:
-            print("No more new leads to process.")
+            print("No more new leads from current session to process.")
             break
+        
+        # Track these lead IDs for downstream filtering
+        session_lead_ids.update(lead['id'] for lead in new_leads)
         
         # Create a partial function with fixed arguments for supabase and the model
         process_func = partial(process_and_update_lead, supabase, gemini_flash_model)
@@ -508,26 +621,26 @@ def main():
             list(executor.map(process_func, new_leads))
     stage_times["1_Lead_Processing"] = time.time() - start_time
 
-    # --- STAGE 2: PRE-ANALYSIS - Group leads by raw domain ---
-    print("\n--- STAGE 2: GROUPING LEADS BY DOMAIN ---")
-    processed_leads = get_processed_leads_for_theming(supabase)
+    # --- STAGE 2: PRE-ANALYSIS - Group leads by raw domain (session-filtered) ---
+    print(f"\n--- STAGE 2: GROUPING LEADS FROM SESSION {session_id} BY DOMAIN ---")
+    processed_leads = get_processed_leads_for_theming_by_session(supabase, session_lead_ids)
     leads_by_domain = defaultdict(list)
     if processed_leads:
         for lead in processed_leads:
             if lead.get("gemini_problem_domain"):
                 leads_by_domain[lead["gemini_problem_domain"]].append(lead)
-        print(f"Found {len(leads_by_domain)} raw domains to analyze.")
+        print(f"Found {len(leads_by_domain)} raw domains to analyze from current session.")
     else:
-        print("No processed leads were found for thematic analysis.")
+        print("No processed leads were found for thematic analysis from current session.")
     stage_times["2_Domain_Grouping"] = time.time() - stage_times.get("1_Lead_Processing", start_time)
 
     # --- STAGE 2.5: CONSOLIDATE THEMES ---
     print("\n--- STAGE 2.5: CONSOLIDATING SIMILAR THEMES ---")
     raw_domains = list(leads_by_domain.keys())
     
-    # Configuration for theme consolidation to avoid timeouts
+    # Configuration for theme consolidation - now handles large datasets efficiently
     THEME_BATCH_SIZE = 50  # Domains per batch to avoid timeouts
-    MAX_DOMAINS_TO_PROCESS = 1000  # Process all domains we find (set high to not limit)
+    MAX_DOMAINS_TO_PROCESS = 2000  # Process large datasets (increased from 1000)
     
     print(f"Found {len(raw_domains)} unique domains to consolidate.")
     consolidated_theme_map = consolidate_themes_with_gemini(
@@ -556,6 +669,9 @@ def main():
     themes_to_process = {theme: leads for theme, leads in final_themes.items() if len(leads) >= MIN_LEADS_FOR_THEME}
     print(f"Found {len(themes_to_process)} themes that meet the minimum lead requirement for opportunity creation.")
 
+    # Track opportunity IDs created in this session
+    session_opportunity_ids = set()
+    
     if themes_to_process:
         # Create a partial function for parallel execution
         create_opp_func = partial(find_and_create_themed_opportunities, supabase, gemini_pro_model)
@@ -564,59 +680,81 @@ def main():
         with concurrent.futures.ThreadPoolExecutor() as executor:
             print(f"Creating opportunities for {len(themes_to_process)} themes in parallel...")
             # Map the function to the themes' names (keys) and their corresponding leads (values)
-            list(executor.map(create_opp_func, themes_to_process.keys(), themes_to_process.values()))
+            opportunity_results = list(executor.map(create_opp_func, themes_to_process.keys(), themes_to_process.values()))
+            
+            # Collect the opportunity IDs that were successfully created
+            for opportunity_id in opportunity_results:
+                if opportunity_id:
+                    session_opportunity_ids.add(opportunity_id)
+            
+            print(f"Successfully created {len(session_opportunity_ids)} opportunities from current session.")
     stage_times["3_Opportunity_Creation"] = time.time() - stage_times.get("2.5_Theme_Consolidation", start_time)
 
-    # --- STAGE 4: Validate all defined opportunities in parallel ---
-    print("\n--- STAGE 4: OPPORTUNITY VALIDATION (IN PARALLEL) ---")
-    while True:
-        opportunities_to_validate = get_opportunities_for_validation(supabase)
-        if not opportunities_to_validate:
-            print("No more opportunities to validate.")
-            break
-        
-        validate_func = partial(validate_and_update_opportunity, supabase, gemini_pro_model)
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            print(f"Validating batch of {len(opportunities_to_validate)} opportunities in parallel...")
-            list(executor.map(validate_func, opportunities_to_validate))
+    # --- STAGE 4: Validate opportunities from current session in parallel ---
+    print(f"\n--- STAGE 4: OPPORTUNITY VALIDATION FROM SESSION {session_id} (IN PARALLEL) ---")
+    if session_opportunity_ids:
+        opportunities_to_validate = get_opportunities_for_validation_by_session(supabase, session_opportunity_ids)
+        if opportunities_to_validate:
+            validate_func = partial(validate_and_update_opportunity, supabase, gemini_pro_model)
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                print(f"Validating {len(opportunities_to_validate)} opportunities from current session in parallel...")
+                list(executor.map(validate_func, opportunities_to_validate))
+        else:
+            print("No opportunities from current session to validate.")
+    else:
+        print("No opportunities were created in Stage 3, skipping validation.")
     stage_times["4_Validation"] = time.time() - stage_times.get("3_Opportunity_Creation", start_time)
 
-    # --- STAGE 5: Brainstorm solutions for all validated opportunities in parallel ---
-    print("\n--- STAGE 5: SOLUTION BRAINSTORMING (IN PARALLEL) ---")
-    while True:
-        validated_opportunities = get_validated_opportunities(supabase)
-        if not validated_opportunities:
-            print("No more validated opportunities for brainstorming.")
-            break
-        
-        brainstorm_func = partial(brainstorm_and_store_solutions, supabase, gemini_pro_model)
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            print(f"Brainstorming for batch of {len(validated_opportunities)} opportunities in parallel...")
-            list(executor.map(brainstorm_func, validated_opportunities))
+    # --- STAGE 5: Brainstorm solutions for validated opportunities from current session in parallel ---
+    print(f"\n--- STAGE 5: SOLUTION BRAINSTORMING FROM SESSION {session_id} (IN PARALLEL) ---")
+    if session_opportunity_ids:
+        validated_opportunities = get_validated_opportunities_by_session(supabase, session_opportunity_ids)
+        if validated_opportunities:
+            brainstorm_func = partial(brainstorm_and_store_solutions, supabase, gemini_pro_model)
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                print(f"Brainstorming for {len(validated_opportunities)} validated opportunities from current session in parallel...")
+                list(executor.map(brainstorm_func, validated_opportunities))
+        else:
+            print("No validated opportunities from current session for brainstorming.")
+    else:
+        print("No opportunities to brainstorm solutions for.")
     stage_times["5_Solution_Brainstorming"] = time.time() - stage_times.get("4_Validation", start_time)
 
-    # --- STAGE 6: Generate documents for all planned opportunities in parallel ---
-    print("\n--- STAGE 6: DOCUMENT GENERATION (IN PARALLEL) ---")
-    while True:
-        opportunities_for_planning = get_opportunities_for_planning(supabase)
-        if not opportunities_for_planning:
-            print("No more opportunities ready for planning.")
-            break
-        
-        planning_func = partial(generate_planning_documents, supabase, gemini_pro_model)
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            print(f"Generating documents for batch of {len(opportunities_for_planning)} opportunities in parallel...")
-            list(executor.map(planning_func, opportunities_for_planning))
+    # --- STAGE 6: Generate documents for planned opportunities from current session in parallel ---
+    print(f"\n--- STAGE 6: DOCUMENT GENERATION FROM SESSION {session_id} (IN PARALLEL) ---")
+    if session_opportunity_ids:
+        opportunities_for_planning = get_opportunities_for_planning_by_session(supabase, session_opportunity_ids)
+        if opportunities_for_planning:
+            planning_func = partial(generate_planning_documents, supabase, gemini_pro_model)
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                print(f"Generating documents for {len(opportunities_for_planning)} opportunities from current session in parallel...")
+                list(executor.map(planning_func, opportunities_for_planning))
+        else:
+            print("No opportunities from current session ready for planning.")
+    else:
+        print("No opportunities to generate documents for.")
     stage_times["6_Document_Generation"] = time.time() - stage_times.get("5_Solution_Brainstorming", start_time)
 
     end_time = time.time()
     total_time = end_time - start_time
     
-    print("\n--- PicoPitch Orchestrator run complete. ---")
+    print(f"\n--- PicoPitch Orchestrator run complete for session {session_id}. ---")
+    print(f"📊 SESSION SUMMARY:")
+    print(f"  - Processed leads from session: {session_id}")
+    print(f"  - Session lead IDs tracked: {len(session_lead_ids)}")
+    print(f"  - Opportunities created: {len(session_opportunity_ids)}")
     print("\n--- PERFORMANCE SUMMARY ---")
     for stage, duration in stage_times.items():
         print(f"  - Stage {stage}: {duration:.2f} seconds")
     print(f"  - TOTAL RUN TIME: {total_time:.2f} seconds")
+    
+    # Clean up session file after successful completion
+    try:
+        import os
+        os.remove('.current_session_id')
+        print(f"🧹 Cleaned up session file for {session_id}")
+    except:
+        pass
 
 
 if __name__ == "__main__":
