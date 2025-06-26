@@ -23,9 +23,9 @@ echo ""
 
 # --- Configuration ---
 # Default subreddits to scrape (space-separated)
-DEFAULT_SUBREDDITS=("ProductManagement" "ProductManager" "ProductHunters")
-DEFAULT_POST_LIMIT=25        # Number of posts to scrape from EACH subreddit
-DEFAULT_COMMENT_LIMIT=20     # Number of top comments to fetch from EACH post
+DEFAULT_SUBREDDITS=("mentalhealth" "MentalHealthSupport" "mentalillness")
+DEFAULT_POST_LIMIT=50       # Number of posts to scrape from EACH subreddit
+DEFAULT_COMMENT_LIMIT=100     # Number of top comments to fetch from EACH post
 
 # Check if subreddits were provided as arguments
 if [ $# -eq 0 ]; then
