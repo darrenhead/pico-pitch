@@ -130,4 +130,11 @@ service-account.json
 # Large files that shouldn't be in git
 *.zip
 *.tar.gz
-*.rar .mcp
+*.rar
+
+# MCP configuration (contains API keys)
+.mcp.json
+
+# AI instruction files
+CLAUDE.md
+GEMINI.md
